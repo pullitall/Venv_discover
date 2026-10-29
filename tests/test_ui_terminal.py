@@ -155,8 +155,13 @@ class UITerminalTests(unittest.TestCase):
             places = fakes.fake_places(tmp)
             store.save_settings(places.settings_path, store.Settings(terminal="pwsh"))
 
-            # Fake environ with no pwsh
-            fake_env = {"SYSTEMROOT": "C:\\Windows"}
+            # Fake environ with no pwsh: an empty PATH and a Program Files folder without PowerShell 7
+            # (otherwise the real C:\Program Files is checked, and CI runners have pwsh installed)
+            fake_env = {
+                "SYSTEMROOT": "C:\\Windows",
+                "PATH": os.path.join(tmp, "empty-path"),
+                "ProgramFiles": os.path.join(tmp, "Program Files"),
+            }
             app = App(
                 places,
                 drive_roots=[],

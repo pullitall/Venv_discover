@@ -13,6 +13,19 @@ from venvdiscover.known import (
 from venvdiscover.model import Kind, longpath, norm_key
 
 
+def _ansi_only(name: str) -> bool:
+    """True if name round-trips through the ANSI code page (mbcs) and those bytes are not valid UTF-8."""
+    try:
+        raw = name.encode("mbcs")
+    except UnicodeEncodeError:
+        return False
+    try:
+        raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("mbcs") == name
+    return False
+
+
 class KnownTests(unittest.TestCase):
     def test_roots_from_home_names(self):
         with fakes.tmpdir() as tmp:
@@ -127,21 +140,27 @@ class KnownTests(unittest.TestCase):
         for p in paths:
             self.assertIsInstance(p, str)
 
-    def test_environments_txt_cp1250(self):
+    def test_environments_txt_ansi_code_page(self):
+        """environments.txt written in this PC's ANSI code page (not UTF-8) is still read.
+
+        The name must exist in the local code page (cp1250 on Polish Windows, cp1252 on English) and its
+        bytes must not be valid UTF-8, so the reader really takes the code-page fallback."""
+        name = next((n for n in ("źródło", "café", "naïve") if _ansi_only(n)), None)
+        if name is None:
+            self.skipTest("this PC's ANSI code page is UTF-8 or can't encode the sample names")
         with fakes.tmpdir() as tmp:
             places = fakes.fake_places(tmp)
-            zrodlo_env = os.path.join(tmp, "źródło", "env")
-            fakes.make_venv(os.path.join(tmp, "źródło"), "env")
+            env_path = os.path.join(tmp, name, "env")
+            fakes.make_venv(os.path.join(tmp, name), "env")
 
-            # Write environments.txt with cp1250 encoding
-            raw_bytes = f"{zrodlo_env}\n".encode("cp1250")
+            raw_bytes = f"{env_path}\n".encode("mbcs")
             os.makedirs(os.path.dirname(longpath(places.environments_txt)), exist_ok=True)
             with open(longpath(places.environments_txt), "wb") as f:
                 f.write(raw_bytes)
 
             paths = known_env_paths(places, {})
             norm_paths = {norm_key(p) for p in paths}
-            self.assertIn(norm_key(zrodlo_env), norm_paths)
+            self.assertIn(norm_key(env_path), norm_paths)
 
     def test_condarc_flow_format(self):
         with fakes.tmpdir() as tmp:

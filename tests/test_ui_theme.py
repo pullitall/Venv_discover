@@ -758,6 +758,11 @@ class UIThemeTests(unittest.TestCase):
                  mock.patch.object(tk.Tk, "winfo_screenheight", return_value=1067):
                 app = create_test_app(places, mapped=True)
                 try:
+                    # Tk caps a window at the real screen size, which the patched winfo_screen* don't change
+                    # (CI runners have small screens), so the default-size layout can only be measured here
+                    # when the real screen fits the default window.
+                    if app.maxsize()[0] < px(app, 1280):
+                        self.skipTest(f"real screen too narrow for the default window (maxsize {app.maxsize()})")
                     app.update_idletasks()
                     app._adjust_initial_sash()
                     app.update_idletasks()

@@ -46,6 +46,7 @@ class ScannerTests(unittest.TestCase):
                 out=out_q,
                 roots=[tree],
                 registry_paths=lambda: [],
+                environ={},  # never the real environment: CI runners set PIPX_HOME and more
             )
             scanner.start()
 
@@ -119,6 +120,7 @@ class ScannerTests(unittest.TestCase):
                 out=out_q1,
                 roots=[tree],
                 registry_paths=lambda: [],
+                environ={},  # never the real environment: CI runners set PIPX_HOME and more
             )
             scanner1.start()
 
@@ -142,6 +144,7 @@ class ScannerTests(unittest.TestCase):
                 out=out_q2,
                 roots=[tree],
                 registry_paths=lambda: [],
+                environ={},  # never the real environment: CI runners set PIPX_HOME and more
             )
 
             with patch("venvdiscover.packages.fill", wraps=packages.fill) as mock_fill:
@@ -207,6 +210,7 @@ class ScannerTests(unittest.TestCase):
                 out=out_q,
                 roots=[tree],
                 registry_paths=lambda: [],
+                environ={},  # never the real environment: CI runners set PIPX_HOME and more
             )
 
             with patch("venvdiscover.packages.fill", wraps=packages.fill) as mock_fill:
@@ -245,6 +249,7 @@ class ScannerTests(unittest.TestCase):
                 out=out_q,
                 roots=[tree_d],
                 registry_paths=lambda: [],
+                environ={},  # never the real environment: CI runners set PIPX_HOME and more
             )
             scanner.start()
 
@@ -276,6 +281,7 @@ class ScannerTests(unittest.TestCase):
                 out=out_q,
                 roots=[tree],
                 registry_paths=lambda: [],
+                environ={},  # never the real environment: CI runners set PIPX_HOME and more
             )
             scanner.start()
 
@@ -316,6 +322,7 @@ class ScannerTests(unittest.TestCase):
                 out=out_q,
                 roots=[tree],
                 registry_paths=lambda: [],
+                environ={},  # never the real environment: CI runners set PIPX_HOME and more
             )
             scanner.start()
 
@@ -354,6 +361,7 @@ class ScannerTests(unittest.TestCase):
                 out=out_q,
                 roots=[tree],
                 registry_paths=lambda: [],
+                environ={},  # never the real environment: CI runners set PIPX_HOME and more
             )
             scanner.start()
 
@@ -391,6 +399,7 @@ class ScannerTests(unittest.TestCase):
                 out=out_q,
                 roots=[tree],
                 registry_paths=lambda: [],
+                environ={},  # never the real environment: CI runners set PIPX_HOME and more
             )
 
             with patch("venvdiscover.packages.fill", wraps=packages.fill) as mock_fill:
@@ -428,6 +437,7 @@ class ScannerTests(unittest.TestCase):
                 out=out_q,
                 roots=[tmp],
                 registry_paths=lambda: [],
+                environ={},  # never the real environment: CI runners set PIPX_HOME and more
             )
 
             # First progress call should succeed
@@ -464,6 +474,7 @@ class ScannerTests(unittest.TestCase):
                 out=out_q,
                 roots=[tree],
                 registry_paths=lambda: [],
+                environ={},  # never the real environment: CI runners set PIPX_HOME and more
             )
             scanner.start()
             scanner.stop()
@@ -496,6 +507,7 @@ class ScannerTests(unittest.TestCase):
                 out=out_q,
                 roots=[tmp],
                 registry_paths=lambda: [],
+                environ={},  # never the real environment: CI runners set PIPX_HOME and more
             )
             scanner.start()
             events = []
@@ -526,6 +538,7 @@ class ScannerTests(unittest.TestCase):
                 out=out_q,
                 roots=[tree],
                 registry_paths=lambda: [],
+                environ={},  # never the real environment: CI runners set PIPX_HOME and more
             )
 
             orig_folder_size = sizes.folder_size
