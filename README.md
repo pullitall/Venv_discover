@@ -91,7 +91,13 @@ python scripts/run_tests.py --workers 3
 
 ## Building the Standalone Executable
 
-Run `python scripts/build_release.py` (pyenv Python 3.11). It runs the tests, builds `VenvDiscover.exe` with PyInstaller in its own `.build-venv`, smoke-tests it on a hidden desktop, and writes `dist/VenvDiscover-<version>.zip` with the exe, the user guide and the source.
+Run `python scripts/build_release.py` (Python 3.11). It runs the tests, builds `VenvDiscover.exe` with PyInstaller in its own `.build-venv`, smoke-tests it on a hidden desktop, and writes `dist/VenvDiscover-<version>.zip` with the exe, the user guide and the source.
+
+Every push is tested and built by GitHub Actions ([`.github/workflows/build.yml`](.github/workflows/build.yml)). From 1.2 on, release zips come straight from that workflow with a build-provenance attestation, so you can check that a zip was built from this repository:
+
+```powershell
+gh attestation verify VenvDiscover-1.2.zip --repo pullitall/Venv_discover
+```
 
 ---
 
