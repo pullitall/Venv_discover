@@ -1,0 +1,21 @@
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+__pycache__/
+node_modules/
+.venv/
+.build-venv/
+build/
+dist/
+*.spec
+.test-tmp/
+
+# The Polish README and guide are kept locally only; the public repo is English-only.
+README.pl.md
+docs/guide/jak-uzywac.pl.html
