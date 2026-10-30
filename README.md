@@ -8,7 +8,7 @@ Venv Discover is a fast, standalone desktop tool designed for developers and dat
 
 ## Download
 
-Windows 10 and 11. Get `VenvDiscover-1.1.zip` from the [latest release](https://github.com/pullitall/Venv_discover/releases/latest), unzip it, and run `VenvDiscover.exe`. Nothing is installed.
+Windows 10 and 11. Get the latest `VenvDiscover-<version>.zip` from the [releases page](https://github.com/pullitall/Venv_discover/releases/latest), unzip it, and run `VenvDiscover.exe`. Nothing is installed.
 
 - The exe isn't code-signed yet, so Windows SmartScreen may say "Windows protected your PC". Click **More info**, then **Run anyway**, or run it from source (below).
 - `SHA256SUMS.txt` in the zip lists the checksum of every file. The zip also holds the user guide and the full source.

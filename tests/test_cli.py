@@ -13,6 +13,7 @@ import unittest
 from unittest import mock
 
 from tests import fakes
+import venvdiscover
 from venvdiscover.cli import main
 from venvdiscover.model import Package
 from venvdiscover.scanner import Progress, ScanDone
@@ -94,7 +95,7 @@ class TestCLI(unittest.TestCase):
         data = json.loads(raw_json)
 
         self.assertEqual(data["schema"], 1)
-        self.assertEqual(data["app"], "1.1")
+        self.assertEqual(data["app"], venvdiscover.__version__)
         datetime.datetime.fromisoformat(data["scanned_at"])
 
         envs = data["envs"]
