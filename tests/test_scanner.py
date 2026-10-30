@@ -106,6 +106,55 @@ class ScannerTests(unittest.TestCase):
                 if isinstance(e, EnvUpdated):
                     self.assertLess(i, sizes_done_idx, "EnvUpdated must arrive before SizesDone")
 
+    def _scan_sizes(self, places, tree: str, cached: list[Env]) -> list[Env]:
+        """Run a scan of tree and return the envs from its EnvUpdated (size) events."""
+        out_q: queue.Queue = queue.Queue()
+        scanner = Scanner(
+            places=places,
+            settings=Settings(),
+            cached=cached,
+            out=out_q,
+            roots=[tree],
+            registry_paths=lambda: [],
+            environ={},  # never the real environment: CI runners set PIPX_HOME and more
+        )
+        scanner.start()
+        updated: list[Env] = []
+        while True:
+            ev = out_q.get(timeout=10.0)
+            if isinstance(ev, EnvUpdated):
+                updated.append(ev.env)
+            if isinstance(ev, SizesDone):
+                break
+        scanner.join(5.0)
+        return updated
+
+    def test_sizes_tell_what_deleting_frees_and_old_caches_are_measured_again(self) -> None:
+        """An env with files hard-linked from a package cache frees less than its size; a cache saved before 1.2
+        (no size_unique) makes the scanner measure that env once more."""
+        with fakes.tmpdir() as tmp:
+            places = fakes.fake_places(tmp)
+            tree = os.path.join(tmp, "tree")
+            env_path = fakes.make_venv(tree, "linked")
+            pkgs = os.path.join(tmp, "pkgs")
+            fakes.write_file(os.path.join(pkgs, "big.bin"), b"x" * 50000)
+            os.link(os.path.join(pkgs, "big.bin"), os.path.join(env_path, "Lib", "big.bin"))
+
+            first = self._scan_sizes(places, tree, cached=[])
+            self.assertEqual(len(first), 1)
+            env = first[0]
+            self.assertIsNotNone(env.size_unique)
+            self.assertEqual(env.size - env.size_unique, 50000)
+
+            # Same disk, but the cache entry lacks size_unique (saved by 1.1): measured again
+            old = Env.from_dict({k: v for k, v in env.to_dict().items() if k != "size_unique"})
+            again = self._scan_sizes(places, tree, cached=[old])
+            self.assertEqual(len(again), 1)
+            self.assertEqual(again[0].size_unique, env.size_unique)
+
+            # A complete cache entry on an unchanged disk is not measured again
+            self.assertEqual(self._scan_sizes(places, tree, cached=[env]), [])
+
     def test_scan_reuses_cache(self) -> None:
         with fakes.tmpdir() as tmp:
             places = fakes.fake_places(tmp)

@@ -30,7 +30,7 @@ from venvdiscover.scanner import (
     Scanner,
     SizesDone,
 )
-from venvdiscover.sizes import folder_size
+from venvdiscover.sizes import folder_usage
 from venvdiscover.terminal import Terminal, available_terminals, open_terminal
 from venvdiscover.trashbin import (
     BinItem,
@@ -50,7 +50,7 @@ from venvdiscover.ui.delete_dialog import (
     Measured,
 )
 from venvdiscover.ui.envs_table import EnvsTable
-from venvdiscover.ui.format import fmt_size
+from venvdiscover.ui.format import fmt_shared_note, fmt_size
 from venvdiscover.ui.packages_panel import PackagesPanel, SearchResults
 from venvdiscover.ui.theme import (
     PALETTES,
@@ -854,10 +854,11 @@ class App(tk.Tk):
                 if unmeasured:
                     self.events.put(UIAction(lambda: self.set_status("Measuring…")))
                     for e in unmeasured:
-                        sz = folder_size(e.path)
-                        e.size = sz
+                        usage = folder_usage(e.path)
+                        e.size, e.size_unique = usage.total, usage.unique
                         marker = trashbin.project_marker(e.path)
-                        self.events.put(Measured(key=e.key, size=sz, project_marker=marker))
+                        self.events.put(Measured(key=e.key, size=usage.total, project_marker=marker,
+                                                 size_unique=usage.unique))
 
                 to_bin, permanent, locked = trashbin.plan_delete(envs)
 
@@ -952,7 +953,10 @@ class App(tk.Tk):
         if isinstance(ev, Measured):
             if ev.key in self.envs:
                 self.envs[ev.key].size = ev.size
+                if ev.size_unique is not None:
+                    self.envs[ev.key].size_unique = ev.size_unique
                 self.envs_table.upsert(self.envs[ev.key])
+                self._refresh_env_header(self.envs[ev.key])
                 if self.search_var.get().strip() and self.search_var.get() != "Search packages…":
                     self._on_search_key()
             return True
@@ -1004,6 +1008,7 @@ class App(tk.Tk):
             selected = self.selected_envs()
             if len(selected) == 1 and selected[0].key == ev.env.key:
                 self.packages_panel.show(ev.env)
+                self._refresh_env_header(ev.env)
             self._update_action_states()
             if self.search_var.get().strip() and self.search_var.get() != "Search packages…":
                 self._on_search_key()
@@ -1098,6 +1103,18 @@ class App(tk.Tk):
             results = query.search(self.envs.values(), q)
             self.search_results.show(results[:1000], len(results))
 
+    @staticmethod
+    def _env_header_text(env: Env) -> str:
+        """The path under the packages heading, plus what deleting frees when other folders share its files."""
+        note = fmt_shared_note(env.size, env.size_unique)
+        return f"{env.path}\n{note}" if note else env.path
+
+    def _refresh_env_header(self, env: Env) -> None:
+        """Update the header after a size change, if this env is the one selected."""
+        selected = self.selected_envs()
+        if len(selected) == 1 and selected[0].key == env.key and hasattr(self, "packages_path_label"):
+            self.packages_path_label.config(text=self._env_header_text(env))
+
     def _on_table_select(self, keys: list[str]) -> None:
         envs = self.selected_envs()
         raw_q = self.search_var.get().strip()
@@ -1107,7 +1124,7 @@ class App(tk.Tk):
                 if hasattr(self, "packages_section_label"):
                     self.packages_section_label.config(text=f"PACKAGES · {envs[0].name}")
                 if hasattr(self, "packages_path_label"):
-                    self.packages_path_label.config(text=envs[0].path)
+                    self.packages_path_label.config(text=self._env_header_text(envs[0]))
                 self.packages_panel.show(envs[0])
             else:
                 if hasattr(self, "packages_section_label"):

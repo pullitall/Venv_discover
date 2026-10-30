@@ -142,6 +142,7 @@ def build_json(
     for env in envs:
         clean_path = _strip_long_prefix(os.path.abspath(env.path))
         size_val = int(env.size) if (args.sizes and env.size is not None) else None
+        size_unique_val = int(env.size_unique) if (args.sizes and env.size_unique is not None) else None
 
         if args.sizes and env.last_used is not None and env.last_used > 0:
             last_used_val = datetime.datetime.fromtimestamp(
@@ -176,6 +177,7 @@ def build_json(
             "locked": env.locked,
             "python": python_val,
             "size": size_val,
+            "size_unique": size_unique_val,
             "last_used": last_used_val,
             "conda_root": conda_root_val,
             "packages": packages_val,
@@ -199,6 +201,7 @@ def build_json(
                     "tool": c.tool,
                     "path": _strip_long_prefix(os.path.abspath(c.path)),
                     "size": c.size,
+                    "size_unique": c.size_unique,
                 }
                 for c in found_caches
             ]
@@ -216,7 +219,9 @@ def format_table(envs: list[Env], args: argparse.Namespace) -> str:
         clean_path = _strip_long_prefix(os.path.abspath(env.path))
         py_str = env.python_version or "—"
         pkg_str = str(len(env.packages)) if env.packages else "—"
-        size_str = fmt_size(env.size) if (args.sizes and env.size is not None) else "—"
+        # what deleting frees, with " *" when other folders share some of its files (as in the app)
+        size_str = fmt_size(env.frees) + (" *" if env.shares_notably else "") \
+            if (args.sizes and env.size is not None) else "—"
         date_str = fmt_date(env.last_used) if (args.sizes and env.last_used) else "—"
         rows.append([
             env.name,

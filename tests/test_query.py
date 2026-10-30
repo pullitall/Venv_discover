@@ -5,6 +5,14 @@ from venvdiscover.query import env_sort_key, filter_packages, search
 
 
 class QueryTests(unittest.TestCase):
+    def test_size_sort_uses_what_deleting_frees(self):
+        """The Size column shows what deleting frees, so a 3 GB env sharing 2 GB sorts below a plain 2 GB one."""
+        gb = 1024 ** 3
+        linked = Env(r"C:\a", Kind.CONDA, "linked", size=3 * gb, size_unique=gb)
+        plain = Env(r"C:\b", Kind.VENV, "plain", size=2 * gb, size_unique=2 * gb)
+        ordered = sorted([linked, plain], key=lambda e: env_sort_key(e, "size"), reverse=True)
+        self.assertEqual([e.name for e in ordered], ["plain", "linked"])
+
     def test_search(self):
         env1 = Env(
             path=r"C:\proj1\.venv",

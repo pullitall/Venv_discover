@@ -1,9 +1,24 @@
 import unittest
 
-from venvdiscover.ui.format import fmt_date, fmt_size
+from venvdiscover.ui.format import fmt_date, fmt_frees, fmt_shared_note, fmt_size
 
 
 class FormatTests(unittest.TestCase):
+    def test_fmt_frees_and_shared_note(self):
+        gb = 1024 ** 3
+        self.assertEqual(fmt_frees(3 * gb, gb), "1.0 GB *")
+        self.assertEqual(fmt_frees(gb, gb), "1.0 GB")
+        self.assertEqual(fmt_frees(gb, None), "1.0 GB")  # not measured yet: show the size on disk, no mark
+        self.assertEqual(fmt_frees(None, None), "…")
+        self.assertEqual(fmt_frees(gb, gb - 1024 ** 2), "1023.0 MB")  # 1 MB shared: too little to mark
+
+        self.assertEqual(fmt_shared_note(gb, gb), "")
+        self.assertEqual(fmt_shared_note(gb, None), "")
+        self.assertEqual(
+            fmt_shared_note(3 * gb, gb),
+            "* 3.0 GB on disk, 2.0 GB shared with other folders (like a package cache): deleting frees 1.0 GB",
+        )
+
     def test_fmt_size(self):
         self.assertEqual(fmt_size(None), "…")
         self.assertEqual(fmt_size(0), "0 B")

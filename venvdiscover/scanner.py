@@ -169,6 +169,7 @@ class Scanner:
             env.packages = list(cached_env.packages)
             env.python_version = cached_env.python_version
             env.size = cached_env.size
+            env.size_unique = cached_env.size_unique
             env.stamp = cached_env.stamp
             env.last_used = sizes.last_used(env)
         else:
@@ -176,7 +177,9 @@ class Scanner:
 
         self.out.put(EnvFound(env=env))
 
-        if self.measure_sizes and (env.size is None or cached_env is None or cached_env.stamp != current_stamp):
+        # size_unique is None in caches saved before 1.2: measure once more to learn what deleting frees
+        if self.measure_sizes and (env.size is None or env.size_unique is None or cached_env is None
+                                   or cached_env.stamp != current_stamp):
             self._sizes_queue.put(env)
 
     def _sizes_worker(self) -> None:
@@ -201,11 +204,12 @@ class Scanner:
 
             try:
                 if env.kind == Kind.CONDA_BASE:
-                    sz = sizes.folder_size(env.path, should_stop=self._stop_event.is_set, skip_dirs=("envs",))
+                    usage = sizes.folder_usage(env.path, should_stop=self._stop_event.is_set, skip_dirs=("envs",))
                 else:
-                    sz = sizes.folder_size(env.path, should_stop=self._stop_event.is_set)
+                    usage = sizes.folder_usage(env.path, should_stop=self._stop_event.is_set)
                 if not self._stop_event.is_set():
-                    env.size = sz
+                    env.size = usage.total
+                    env.size_unique = usage.unique
                     self.out.put(EnvUpdated(env=env))
             except Exception:
                 pass

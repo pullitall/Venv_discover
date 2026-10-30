@@ -17,6 +17,7 @@ from venvdiscover.caches import (
     clean_cache,
     find_caches,
     measure_cache,
+    measure_cache_usage,
     safe_delete_cache_contents,
     _pip_ini_cache_dir,
 )
@@ -37,6 +38,21 @@ def pump(root: tk.Misc, timeout: float = 4.0, condition=None) -> None:
 
 
 class CachesTests(unittest.TestCase):
+    def test_measure_cache_usage_counts_files_linked_into_envs_as_shared(self):
+        """uv hard-links files from its cache into envs: cleaning the cache frees only the files no env links to."""
+        with fakes.tmpdir() as tmp:
+            cache = os.path.join(tmp, "uv_cache")
+            env = os.path.join(tmp, "env")
+            fakes.write_file(os.path.join(cache, "archive", "pkg.pyd"), b"w" * 20000)
+            fakes.write_file(os.path.join(cache, "only_here.bin"), b"c" * 5000)
+            os.makedirs(env, exist_ok=True)
+            os.link(os.path.join(cache, "archive", "pkg.pyd"), os.path.join(env, "pkg.pyd"))
+
+            total, unique, _ = measure_cache_usage(cache)
+            self.assertEqual(total, 25000)
+            self.assertEqual(unique, 5000)
+            self.assertEqual(measure_cache(cache)[0], 25000)
+
     def test_find_caches_defaults(self):
         with fakes.tmpdir() as tmp:
             places = fakes.fake_places(tmp)
@@ -58,6 +74,7 @@ class CachesTests(unittest.TestCase):
 
             for c in caches:
                 self.assertGreater(c.size, 0)
+                self.assertEqual(c.size_unique, c.size)  # nothing linked into envs here
                 self.assertGreater(c.last_modified, 0.0)
                 self.assertEqual(c.clean_method, "safe permanent delete")
 

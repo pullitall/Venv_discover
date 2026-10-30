@@ -12,7 +12,7 @@ from tkinter import ttk
 
 from venvdiscover.model import Env, Kind
 from venvdiscover.places import Places
-from venvdiscover.sizes import folder_size
+from venvdiscover.sizes import folder_usage
 from venvdiscover.trashbin import (
     BinItem,
     DeleteError,
@@ -20,7 +20,7 @@ from venvdiscover.trashbin import (
     move_to_bin,
     project_marker,
 )
-from venvdiscover.ui.format import fmt_size
+from venvdiscover.ui.format import fmt_size, shares_notably
 from venvdiscover.ui.theme import style_window
 
 
@@ -29,6 +29,7 @@ class Measured:
     key: str
     size: int
     project_marker: str | None = None
+    size_unique: int | None = None  # what deleting frees; None = not known
 
 
 @dataclass
@@ -112,19 +113,33 @@ class ConfirmDeleteDialog(tk.Toplevel):
     def get_text(self) -> str:
         return self._dialog_text
 
+    @staticmethod
+    def _size_text(env: Env) -> str:
+        """'1.2 GB', or 'frees 0.9 GB (3.0 GB on disk, 2.1 GB shared with other folders)' when files are shared."""
+        if shares_notably(env.size, env.size_unique):
+            return (f"frees {fmt_size(env.size_unique)} ({fmt_size(env.size)} on disk, "
+                    f"{fmt_size(env.shared)} shared with other folders)")
+        return fmt_size(env.size)
+
+    @staticmethod
+    def _unmeasured_conda_note(env: Env) -> str | None:
+        """Before the shared part is measured, warn that conda envs share files with the package cache."""
+        if env.size_unique is None and (env.kind in (Kind.CONDA, Kind.CONDA_BASE) or env.conda_root):
+            return "    Conda shares files with its package cache, so deleting may free less space than shown."
+        return None
+
     def _build_text(self) -> str:
         sections: list[str] = []
 
         if self.to_bin:
             lines: list[str] = ["Goes to the bin (14 days):"]
             for env in self.to_bin:
-                sz = fmt_size(env.size)
-                lines.append(f"  • {env.name} — {env.path} — {sz}")
+                lines.append(f"  • {env.name} — {env.path} — {self._size_text(env)}")
                 if self.extras.get(env.key):
                     for extra in self.extras[env.key]:
                         lines.append(f"      Will also remove: {extra}")
-                if env.kind in (Kind.CONDA, Kind.CONDA_BASE) or env.conda_root:
-                    lines.append("    Conda shares files with its package cache, so deleting may free less space than shown.")
+                if note := self._unmeasured_conda_note(env):
+                    lines.append(note)
                 if env.kind == Kind.APP_VENV:
                     lines.append("    This env belongs to an app. Deleting it may break that app until it rebuilds the env.")
             sections.append("\n".join(lines))
@@ -133,13 +148,13 @@ class ConfirmDeleteDialog(tk.Toplevel):
             lines = ["Deleted permanently:"]
             for env in self.permanent:
                 sz = fmt_size(env.size)
-                lines.append(f"  • {env.name} — {env.path} — {sz}")
+                lines.append(f"  • {env.name} — {env.path} — {self._size_text(env)}")
                 lines.append(f"    This is {sz} and can only be deleted permanently.")
                 if self.extras.get(env.key):
                     for extra in self.extras[env.key]:
                         lines.append(f"      Will also remove: {extra}")
-                if env.kind in (Kind.CONDA, Kind.CONDA_BASE) or env.conda_root:
-                    lines.append("    Conda shares files with its package cache, so deleting may free less space than shown.")
+                if note := self._unmeasured_conda_note(env):
+                    lines.append(note)
                 if env.kind == Kind.APP_VENV:
                     lines.append("    This env belongs to an app. Deleting it may break that app until it rebuilds the env.")
             sections.append("\n".join(lines))
@@ -218,11 +233,12 @@ class DeleteWorker(threading.Thread):
     def run(self) -> None:
         if self.mode == "measure":
             for env in self.envs:
-                sz = env.size
+                sz, unique = env.size, env.size_unique
                 if sz is None:
-                    sz = folder_size(env.path)
+                    usage = folder_usage(env.path)
+                    sz, unique = usage.total, usage.unique
                 marker = project_marker(env.path)
-                self.out.put(Measured(key=env.key, size=sz, project_marker=marker))
+                self.out.put(Measured(key=env.key, size=sz, project_marker=marker, size_unique=unique))
         elif self.mode == "delete":
             for env in self.envs:
                 try:

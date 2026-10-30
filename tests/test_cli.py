@@ -118,6 +118,8 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(e["python"], "3.11.4")
         self.assertIsInstance(e["size"], int)
         self.assertGreater(e["size"], 0)
+        # size_unique: what deleting frees (nothing is hard-linked from a package cache here)
+        self.assertEqual(e["size_unique"], e["size"])
         self.assertIsNone(e["conda_root"])
 
         pkgs = e["packages"]
@@ -155,6 +157,7 @@ class TestCLI(unittest.TestCase):
         e = data["envs"][0]
         self.assertIsNone(e["packages"])
         self.assertIsNone(e["size"])
+        self.assertIsNone(e["size_unique"])
         self.assertIsNone(e["last_used"])
 
     def test_search_name_and_version(self) -> None:

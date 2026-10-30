@@ -9,7 +9,7 @@ from tkinter import ttk
 
 from venvdiscover.model import Env, Kind, LOCKED_KINDS
 from venvdiscover.query import env_sort_key
-from venvdiscover.ui.format import fmt_date, fmt_size
+from venvdiscover.ui.format import fmt_date, fmt_frees
 from venvdiscover.ui.theme import get_kind_image, px
 
 COLUMNS = ("name", "kind", "python", "packages", "size", "last_used", "location")
@@ -98,7 +98,7 @@ class EnvsTable(ttk.Frame):
         # Packages: heading "Packages"
         # Name: sensible cap (~140 px)
         w_kind = max(f_head.measure(HEADER_TITLES["kind"]), f_def.measure("python install (locked)")) + px(self.tree, 18)
-        w_size = max(f_head.measure(HEADER_TITLES["size"]), f_def.measure("999.9 MB")) + px(self.tree, 16)
+        w_size = max(f_head.measure(HEADER_TITLES["size"]), f_def.measure("999.9 MB *")) + px(self.tree, 16)
         w_last = max(f_head.measure(HEADER_TITLES["last_used"]), f_def.measure("2026-10-27")) + px(self.tree, 18)
         w_py = max(f_head.measure(HEADER_TITLES["python"]), f_def.measure("3.10.18")) + px(self.tree, 16)
         w_pkg = max(f_head.measure(HEADER_TITLES["packages"]), f_def.measure("999")) + px(self.tree, 16)
@@ -136,7 +136,7 @@ class EnvsTable(ttk.Frame):
 
         py_str = env.python_version or ""
         pkg_str = str(len(env.packages)) if (env.packages or env.stamp > 0) else ""
-        size_str = fmt_size(env.size)
+        size_str = fmt_frees(env.size, env.size_unique)
         lu_str = f"  {fmt_date(env.last_used)}"
         loc_str = env.path
 

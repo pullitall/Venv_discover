@@ -59,7 +59,8 @@ def env_sort_key(env: Env, column: str) -> tuple:
     if column == "packages":
         return (is_temp, len(env.packages), env.name.lower())
     if column == "size":
-        size_part = (0, 0) if env.size is None else (1, env.size)
+        # the Size column shows what deleting frees, so sort by that
+        size_part = (0, 0) if env.frees is None else (1, env.frees)
         return (is_temp, size_part, env.name.lower())
     if column == "last_used":
         last_part = (0, 0.0) if env.last_used is None else (1, env.last_used)

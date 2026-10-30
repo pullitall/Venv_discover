@@ -52,14 +52,18 @@ class Cache:
     size: int
     last_modified: float
     clean_method: str  # e.g. "uv cache clean", "pip cache purge", "poetry cache clear", "pipenv --clear", or "safe permanent delete"
+    size_unique: int | None = None  # what cleaning frees: files also hard-linked into envs (uv does that) stay
 
 
-def measure_cache(path: str, tool: str = "") -> tuple[int, float]:
-    """Calculate total size in bytes and most recent modification time.
+def measure_cache_usage(path: str, tool: str = "") -> tuple[int, int, float]:
+    """Total size in bytes, the part only the cache holds, and the most recent modification time.
 
+    uv hard-links files from its cache into envs, so cleaning the cache frees only the files no env links to.
     For poetry, excludes any 'virtualenvs' subdirectory.
     """
     total_size = 0
+    unique_size = 0
+    linked: dict[tuple[int, int], list[int]] = {}  # (st_dev, st_ino) -> [size, st_nlink, links seen here]
     max_mtime = 0.0
     lp = longpath(path)
     try:
@@ -76,6 +80,10 @@ def measure_cache(path: str, tool: str = "") -> tuple[int, float]:
                 try:
                     stat = os.stat(fp)
                     total_size += stat.st_size
+                    if stat.st_nlink <= 1:
+                        unique_size += stat.st_size
+                    else:
+                        linked.setdefault((stat.st_dev, stat.st_ino), [stat.st_size, stat.st_nlink, 0])[2] += 1
                     if stat.st_mtime > max_mtime:
                         max_mtime = stat.st_mtime
                 except OSError:
@@ -83,6 +91,16 @@ def measure_cache(path: str, tool: str = "") -> tuple[int, float]:
     except OSError:
         pass
 
+    unique_size += sum(size for size, nlink, seen in linked.values() if seen >= nlink)
+    return total_size, unique_size, max_mtime
+
+
+def measure_cache(path: str, tool: str = "") -> tuple[int, float]:
+    """Calculate total size in bytes and most recent modification time.
+
+    For poetry, excludes any 'virtualenvs' subdirectory.
+    """
+    total_size, _, max_mtime = measure_cache_usage(path, tool)
     return total_size, max_mtime
 
 
@@ -161,7 +179,7 @@ def find_caches(
         else:
             method = "safe permanent delete"
 
-        size, last_modified = measure_cache(path, tool=tool)
+        size, size_unique, last_modified = measure_cache_usage(path, tool=tool)
         caches.append(
             Cache(
                 tool=tool,
@@ -169,6 +187,7 @@ def find_caches(
                 size=size,
                 last_modified=last_modified,
                 clean_method=method,
+                size_unique=size_unique,
             )
         )
 

@@ -4,10 +4,40 @@ import unittest
 
 from tests import fakes
 from venvdiscover.model import Env, Kind, longpath
-from venvdiscover.sizes import folder_size, last_used
+from venvdiscover.sizes import LINK_CHECK_MIN, folder_size, folder_usage, last_used
 
 
 class SizesTests(unittest.TestCase):
+    def test_folder_usage_counts_hard_linked_files_as_shared(self):
+        """Files hard-linked from outside (conda's pkgs, uv's cache) are on disk but stay when the env is deleted."""
+        with fakes.tmpdir() as tmp:
+            env = os.path.join(tmp, "env")
+            cache = os.path.join(tmp, "pkgs")
+            own, shared, small, inner = 8192, 16384, 100, 8192
+            self.assertLess(small, LINK_CHECK_MIN)
+            self.assertGreaterEqual(min(own, shared, inner), LINK_CHECK_MIN)
+
+            fakes.write_file(os.path.join(env, "own.bin"), b"o" * own)
+            fakes.write_file(os.path.join(cache, "big.bin"), b"s" * shared)
+            os.makedirs(os.path.join(env, "Lib"), exist_ok=True)
+            os.link(os.path.join(cache, "big.bin"), os.path.join(env, "Lib", "big.bin"))
+            # Below LINK_CHECK_MIN the link count isn't read: a small linked file counts as the env's own
+            fakes.write_file(os.path.join(cache, "tiny.txt"), b"t" * small)
+            os.link(os.path.join(cache, "tiny.txt"), os.path.join(env, "tiny.txt"))
+            # One file linked twice inside the env is freed once
+            fakes.write_file(os.path.join(env, "a.bin"), b"i" * inner)
+            os.link(os.path.join(env, "a.bin"), os.path.join(env, "Lib", "a_again.bin"))
+
+            usage = folder_usage(env)
+            self.assertEqual(usage.total, own + shared + small + 2 * inner)
+            self.assertEqual(usage.unique, own + small + inner)
+            self.assertEqual(folder_size(env), usage.total)
+            self.assertEqual(folder_usage(env, check_links=False).unique, usage.total)
+
+            # With the cache copy gone, the env holds the only link: deleting it frees that file too
+            os.remove(os.path.join(cache, "big.bin"))
+            self.assertEqual(folder_usage(env).unique, own + small + inner + shared)
+
     def test_folder_size(self):
         with fakes.tmpdir() as tmp:
             d = os.path.join(tmp, "size_test")

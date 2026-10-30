@@ -101,6 +101,30 @@ class DeleteUITests(unittest.TestCase):
             )
             dialog2.destroy()
 
+    def test_dialog_text_shows_what_deleting_frees(self) -> None:
+        """A measured env that shares files says exactly what deleting frees, instead of the generic conda note."""
+        with fakes.tmpdir() as tmp:
+            p = os.path.join(tmp, "conda_linked")
+            os.makedirs(longpath(p), exist_ok=True)
+            gb = 1024 ** 3
+            env = Env(p, Kind.CONDA, "conda_linked", size=3 * gb, size_unique=gb)
+
+            dialog = ConfirmDeleteDialog(
+                self.root,
+                to_bin=[],
+                permanent=[env],
+                locked=[],
+                extras={},
+                on_confirm=lambda: None,
+            )
+            dialog.update()
+            text = dialog.dialog_text
+            self.assertIn(f"conda_linked — {p} — frees 1.0 GB (3.0 GB on disk, 2.0 GB shared with other folders)", text)
+            # The bin-or-permanent rule still uses the size on disk
+            self.assertIn("This is 3.0 GB and can only be deleted permanently.", text)
+            self.assertNotIn("may free less space than shown", text)
+            dialog.destroy()
+
     def test_dialog_extras_and_locked(self) -> None:
         """Extras (kernels, shortcuts) and locked envs (e.g. conda base) appear in dialog text."""
         with fakes.tmpdir() as tmp:

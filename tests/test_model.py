@@ -3,9 +3,34 @@ import unittest
 
 from tests import fakes
 from venvdiscover.model import (
-    Env, Kind, Package, display_name, is_under, longpath, norm_key, normalize_name,
+    SHARED_NOTE_MIN, Env, Kind, Package, display_name, is_under, longpath, norm_key, normalize_name,
 )
 from venvdiscover.places import Places
+
+
+class SharedSizeTests(unittest.TestCase):
+    GB = 1024 ** 3
+
+    def test_frees_and_shared(self):
+        linked = Env("C:\\x\\linked", Kind.CONDA, "linked", size=3 * self.GB, size_unique=self.GB)
+        self.assertEqual(linked.frees, self.GB)
+        self.assertEqual(linked.shared, 2 * self.GB)
+        self.assertTrue(linked.shares_notably)
+
+        unmeasured = Env("C:\\x\\old", Kind.VENV, "old", size=self.GB)  # e.g. from a cache saved before 1.2
+        self.assertEqual(unmeasured.frees, self.GB)
+        self.assertEqual(unmeasured.shared, 0)
+        self.assertFalse(unmeasured.shares_notably)
+
+        a_little = Env("C:\\x\\little", Kind.VENV, "little", size=self.GB, size_unique=self.GB - SHARED_NOTE_MIN + 1)
+        self.assertFalse(a_little.shares_notably)
+
+    def test_size_unique_round_trip_and_old_caches(self):
+        e = Env("C:\\x\\e", Kind.CONDA, "e", size=3 * self.GB, size_unique=self.GB)
+        self.assertEqual(Env.from_dict(e.to_dict()).size_unique, self.GB)
+        old = e.to_dict()
+        del old["size_unique"]
+        self.assertIsNone(Env.from_dict(old).size_unique)
 
 
 class PlacesTests(unittest.TestCase):

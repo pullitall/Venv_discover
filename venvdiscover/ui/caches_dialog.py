@@ -8,7 +8,7 @@ from tkinter import messagebox, ttk
 from typing import TYPE_CHECKING, Any, Callable
 
 from venvdiscover.caches import Cache, clean_cache, find_caches
-from venvdiscover.ui.format import fmt_date, fmt_size
+from venvdiscover.ui.format import fmt_date, fmt_frees, fmt_size, shares_notably
 from venvdiscover.ui.theme import apply_theme, px, style_window
 
 if TYPE_CHECKING:
@@ -182,7 +182,7 @@ class CachesDialog(tk.Toplevel):
         self._caches = caches
         self.tree.delete(*self.tree.get_children())
         for idx, c in enumerate(caches):
-            sz_str = fmt_size(c.size)
+            sz_str = fmt_frees(c.size, c.size_unique)
             dt_str = fmt_date(c.last_modified) if c.last_modified > 0 else "—"
             self.tree.insert(
                 "",
@@ -217,16 +217,22 @@ class CachesDialog(tk.Toplevel):
         if cache is None:
             return
 
+        if shares_notably(cache.size, cache.size_unique):
+            assert cache.size_unique is not None
+            size_text = (f"frees {fmt_size(cache.size_unique)}; {fmt_size(cache.size - cache.size_unique)} of its "
+                         f"{fmt_size(cache.size)} is also linked into environments and stays")
+        else:
+            size_text = fmt_size(cache.size)
         if cache.tool == "pipenv":
             msg = (
-                f"Clean {cache.tool} cache ({fmt_size(cache.size)}) at:\n"
+                f"Clean {cache.tool} cache ({size_text}) at:\n"
                 f"{cache.path}\n\n"
                 "Note: pipenv --clear clears both pipenv's and pip's package caches.\n"
                 "Cached packages will be re-downloaded when needed."
             )
         else:
             msg = (
-                f"Clean {cache.tool} cache ({fmt_size(cache.size)}) at:\n"
+                f"Clean {cache.tool} cache ({size_text}) at:\n"
                 f"{cache.path}\n\n"
                 "Cached packages will be re-downloaded when needed."
             )

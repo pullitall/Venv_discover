@@ -18,7 +18,7 @@ Windows 10 and 11. Get `VenvDiscover-1.1.zip` from the [latest release](https://
 ## Key Features
 
 - **Automatic Multi-Drive Discovery:** Rapidly locates environments created by Conda, mamba, micromamba, Pixi, Hatch, PDM, Rye, pipx, Poetry, uv, and standard `venv` / `virtualenv`, alongside base Python installations across all local drives and config locations.
-- **Deep Size & Age Profiling:** Quickly inspect directory sizes and last-used timestamps to identify forgotten gigabytes.
+- **What Deleting Really Frees:** The Size column shows how much space deleting each environment frees, next to when it was last used. conda, mamba, pixi and uv hard-link package files from their caches, and those files stay on disk after a delete, so they aren't counted; envs that share files are marked `*`, and the details show the size on disk and the shared part.
 - **Instant Package Inspector:** Reads installed package names, versions, and installer metadata directly from `.dist-info` and `conda-meta` files on disk without launching slow subprocesses.
 - **14-Day Safety Bin:** Environments up to **1 GB** (1,073,741,824 bytes) are safely moved into a local 14-day recycle bin (`.venvdiscover-bin`) on that drive and can be restored with a single click. Large environments (> 1 GB) are guarded with explicit permanent deletion warnings.
 - **Zero Third-Party Dependencies:** Written purely with Python's standard library (`tkinter`, `ctypes`, `winreg`, `json`, `tomllib`). No `pip install` required.
@@ -62,7 +62,7 @@ python -m venvdiscover [--json] [--packages] [--sizes] ...
 ### Flags
 - `--json`: Output environments as a single, structured JSON document (schema version 1) to `stdout`.
 - `--packages`: Include installed package lists (`name`, `version`, `source`) for each environment.
-- `--sizes`: Measure on-disk directory sizes and last-used dates (omitted by default for sub-second speed).
+- `--sizes`: Measure sizes and last-used dates (omitted by default for sub-second speed). `size` is the size on disk, `size_unique` what deleting frees (without files hard-linked from a package cache).
 - `--search NAME[==VER]`: Return only environments containing the given package (supports PEP 503 normalization and optional exact version, e.g. `numpy==1.26.4`).
 - `--known-only`: Skip full drive scanning and inspect only registered environment locations (completes in ~1 s).
 - `--paths DIR ...`: Restrict directory scanning strictly to designated folders.

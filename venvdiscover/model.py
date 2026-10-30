@@ -19,6 +19,9 @@ class Kind(str, Enum):
 
 LOCKED_KINDS = frozenset({Kind.CONDA_BASE, Kind.PYTHON})
 
+# Shared space below this isn't worth a mark (a few small files linked from a package cache).
+SHARED_NOTE_MIN = 10 * 1024 * 1024
+
 # Folder names that say nothing on their own; the parent folder names the env instead.
 GENERIC_NAMES = frozenset({".venv", "venv", "env", ".env", ".build-venv", "virtualenv"})
 
@@ -44,6 +47,7 @@ class Env:
     conda_root: str | None = None
     stamp: float = 0.0  # package_stamp() when the packages were read
     key: str = ""  # norm_key(path), filled in automatically
+    size_unique: int | None = None  # bytes only this env holds (deleting frees this); None = not measured yet
 
     def __post_init__(self) -> None:
         if not self.key:
@@ -52,6 +56,23 @@ class Env:
     @property
     def locked(self) -> bool:
         return self.kind in LOCKED_KINDS
+
+    @property
+    def shares_notably(self) -> bool:
+        """True when at least SHARED_NOTE_MIN of this env stays on disk after deleting it."""
+        return self.shared >= SHARED_NOTE_MIN
+
+    @property
+    def frees(self) -> int | None:
+        """What deleting this env frees: its size without files hard-linked from a package cache or other env."""
+        return self.size_unique if self.size_unique is not None else self.size
+
+    @property
+    def shared(self) -> int:
+        """Bytes of this env that stay on disk after deleting it, because other folders link to the same files."""
+        if self.size is None or self.size_unique is None:
+            return 0
+        return max(0, self.size - self.size_unique)
 
     def to_dict(self) -> dict:
         d = asdict(self)
